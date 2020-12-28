@@ -1,5 +1,5 @@
 
-
+import cv2
 def rgb_callback(self,data):
         try:
             img = self.br.imgmsg_to_cv2(data, "bgr8")

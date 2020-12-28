@@ -3,8 +3,10 @@ import sys
 import numpy as np;
 from scipy import signal
 import imageio
+from matplotlib import pyplot as plt
 from PyQt5.QtWidgets import QFileDialog ,QApplication, QWidget, QComboBox, QLabel, QPushButton, QGridLayout, QGroupBox, QVBoxLayout, QGridLayout, QMessageBox
-
+from ShowWindow import ShowWindow
+import threading
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -46,6 +48,8 @@ class MainWindow(QWidget):
 
         # 4. Stereo Disparity Map
         self.__btn41 = QPushButton('4.1 Stereo Disparty Map')
+        self.__btn41.clicked.connect(self.stereoDisparityMap41)
+        self.__label42 = QLabel('None')
 
         self.__set_UIlayout()
         self.show()
@@ -89,6 +93,7 @@ class MainWindow(QWidget):
         gb4_grid = QGridLayout()
         gb4 = QGroupBox('4. Stereo Disparity Map')
         gb4_grid.addWidget(self.__btn41)
+        gb4_grid.addWidget(self.__label42)
         gb4.setLayout(gb4_grid)
         window_grid.addWidget(gb4, 2, 3, 1, 2)
 
@@ -202,10 +207,8 @@ class MainWindow(QWidget):
             ret, A, distortion, rvec, tvec = cv2.calibrateCamera([objP3D], [objP2D], gray.shape[::-1], None, None)
             rvec, tvec = np.float32(rvec), np.float32(tvec)
             imgs[-1] = self.__pyramid(imgs[-1], rvec, tvec, A, distortion)
+        self.__cache['3-ar'] = imgs
         gif=imageio.mimsave('yang.gif', imgs,'GIF',duration=0.5)
-        #cv2.imshow('AR', imgs[0])
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
 
     def __pyramid(self, img, rvec, tvec, mtx, distortion):
         objp = np.zeros((11*8, 3), np.float32)
@@ -225,6 +228,34 @@ class MainWindow(QWidget):
         cv2.line(img, p3, p4, color, 3)
         img = cv2.resize(img, (512, 512))
         return img
+
+    def __display(self, interval):
+        return 0
+
+
+
+    def stereoDisparityMap41(self):
+        imgL = cv2.imread('Datasets/Q4_Image/imgL.png', 0)
+        imgR = cv2.imread('Datasets/Q4_Image/imgR.png', 0)
+
+        stereo = cv2.StereoBM_create(numDisparities=256, blockSize=11)
+        disparity = stereo.compute(imgL, imgR)
+        min_ = np.min(disparity)
+        max_ = np.max(disparity)
+        res = (disparity - min_) / (max_ - min_)
+
+        fig = plt.figure()
+        plt.imshow(res, 'gray')
+        fig.canvas.mpl_connect('button_press_event', self.onclick)
+        self.__cache['4-disparity'] = disparity
+        plt.show()
+
+    def onclick(self, event):
+        d = self.__cache['4-disparity'][int(event.ydata)][int(event.xdata)]
+        z = 178 * 2826 / (d + 123)
+        msg = 'Disparity :{} pixel\nDepth :{}mm'.format(d, format(z,'.6g'))
+        self.__label42.setText(msg)
+
 
 
 
